@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-PROJ_LOC=~/.proj/projects.json
 DATA=0
 
 function printColor {
@@ -37,39 +36,13 @@ function showProjects(){
 }
 
 function delProject(){
-	PROJS=$(jsonRead "[.projects[].name] | @csv")
-	INDEX=0
-
-
-	IFS=","
-	read -ra NAMES <<< "$PROJS"
-	echo "Which project would you like to remove?"
-
-	RNAMES=()
-	CURRENTPROJ=$(jsonRead ".current")
-	for name in ${NAMES[@]}; do
-		name=$(echo $name | tr -d '\\"')
-		VINDEX=$(( $INDEX + 1 ))
-		if [ ! $CURRENTPROJ == "null" ] && [ $INDEX -eq $CURRENTPROJ ]; then
-			printGreen "${VINDEX}) - $name (Current Project)"
-		else
-			echo "${VINDEX}) - $name"
-		fi
-		RNAMES+=($name)
-		INDEX=$(( $INDEX + 1 ))
-	done
-
-	read -p "> " CHOICE
-	if [ -z $CHOICE ]; then
-		exit 0
+	projectSelect "Which project would you like to void?"
+	CHOICE=$?
+	if [ $CHOICE -eq 99 ]; then
+		return 0
 	fi
-
 	# Make sure choice is valid
 	CHOICE=$(( $CHOICE - 1 ))
-	if [ $CHOICE -gt $(( ${#NAMES[@]} )) ] || [ $CHOICE -lt 0 ]; then
-		echo "Choice not in range"
-		exit 0
-	fi
 
 	# Double check that the user wants to remove
 	# the project if it has been marked as the
@@ -153,13 +126,42 @@ function init() {
 }
 
 function goto() {
-	PROJS=$(jsonRead "[.projects[].name] | @csv")
+	projectSelect "Where would you like to go?"
+	CHOICE=$?
+	if [ $CHOICE -eq 99 ]; then
+		return 0
+	fi
+
+	CHOICE=$(( $CHOICE - 1 ))
+
+	CHOICEDIR=$(jsonRead ".projects[$CHOICE].dir" | tr -d "\"")
+	if [ "$(pwd)" == "$CHOICEDIR" ]; then
+		echo "Already here!"
+		return 0
+	fi
+
+	DIR=$(jsonRead ".projects[$CHOICE]?.dir")
+	if [ -z $DIR ]; then
+		echo "ERROR, dir is null!"
+		return 0
+	else
+		DIR=$(echo $DIR | tr -d '"')
+		cd $DIR
+	fi
+}
+
+function cleanup() {
+	unset PROJ_LOC
+	unset DATA
+}
+
+function projectSelect() {
 	INDEX=0
-
-
 	IFS=","
-	read -ra NAMES <<< "$PROJS"
-	echo "Where would you like to go?"
+	read -ra NAMES <<< "$(getProjectNames)"
+	if [ ! -z $1 ]; then
+		echo "$1"
+	fi
 
 	CURRENTPROJ=$(jsonRead ".current")
 	for name in ${NAMES[@]}; do
@@ -174,39 +176,27 @@ function goto() {
 	done
 	read -p "> " CHOICE
 	if [ -z $CHOICE ]; then
-		exit 0
-	fi
-
-	CHOICE=$(( $CHOICE - 1 ))
-	CHOICEDIR=$(jsonRead ".projects[$CHOICE].dir" | tr -d "\"")
-	if [ "$(pwd)" == "$CHOICEDIR" ]; then
-		echo "Already here!"
-		exit 0
-	fi
-	if [ $CHOICE -gt $(( ${#NAMES[@]} - 1 )) ] || [ $CHOICE -lt 0 ]; then
-		echo "Choice not in range"
-		exit 0
-	fi
-
-	DIR=$(jsonRead ".projects[$CHOICE]?.dir")
-	if [ -z $DIR ]; then
-		echo "ERROR, dir is null!"
-		exit 0
+		return 99
 	else
-		DIR=$(echo $DIR | tr -d '"')
-		cd $DIR
+		while [ $CHOICE -gt $(( ${#NAMES[@]} )) ] || [ $CHOICE -lt 0 ]; do
+			echo "Choice not in range"
+			read -p "> " CHOICE
+		done
+		return $CHOICE
 	fi
 }
 
-function jsonUpdate() {
-	V=$(cat $PROJ_LOC | jq "$1")
-	if [ $? -eq 0 ]; then
-		echo "$V" > $PROJ_LOC
-	else
-		echo "ERROR with JSON update!"
-	fi
+function getProjectNames(){
+	NAMES=$(jsonRead "[.projects[].name] | @csv")
+	echo "$NAMES"
 }
 
-function jsonRead() {
-	cat $PROJ_LOC | jq "$1"
+function getProjectInDirectory() {
+	V=$(jsonRead "[.projects[].dir] | map(. ==\"$(pwd)\") | index(true) // -1 ")
+	jsonRead ".projects[$V]$1"
+}
+
+function getProjectIndexFromDirectory() {
+	V=$(jsonRead "[.projects[].dir] | map(. ==\"$(pwd)\") | index(true) // -1 ")
+	echo $V
 }

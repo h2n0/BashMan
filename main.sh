@@ -1,12 +1,25 @@
 #!/usr/bin/env bash
+
+# Global args
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-source $SCRIPT_DIR/projects.sh
-
-
 NUM_ARGS=$#
+PROJ_LOC=~/.proj/projects.json
+
+
+# Other function files
+source $SCRIPT_DIR/json.sh
+source $SCRIPT_DIR/projects.sh
+source $SCRIPT_DIR/todo.sh
+
+
+# Get the name / alias of the program
+function getProgramName() {
+	local SCRIPT=$0
+	cat ~/.bashrc | grep $SCRIPT | grep $SCRIPT_DIR | grep -oEi 'alias .*=' | cut -b 7- | grep -oEi '^.*[^=]'
+}
 
 function helpDisplay() {
-	echo "proj [FUNCTION]"
+	echo "$(getProgramName) [FUNCTION]"
 	echo "= Functions ="
 	echo "help - Print this message"
 	echo "goto - Show all projects and select where to go"
@@ -16,11 +29,12 @@ function helpDisplay() {
 	echo "back - Go to current marked project"
 	echo "void - Remove a project from tracking"
 	echo "list - Show all proejcts"
+	echo "todo - coming soon..."
 }
 
 
 function intro() {
-	printGreen "Project Manager - V1"
+	printGreen "BashMan - V1"
 	echo ""
 	if [ $NUM_ARGS -eq 0 ]; then
 		helpDisplay
@@ -75,3 +89,9 @@ function process(){
 ### MAIN SCRIPT STARTS HERE ###
 intro
 process "$@"
+
+
+# Clean up vars here
+cleanup
+unset SCRIPT_DIR
+unset NUM_ARGS
