@@ -16,7 +16,7 @@ function showProjects(){
 	PROJS=$(jsonRead "[.projects[].name] | @csv")
 	INDEX=0
 
-
+	OLD_IFS=$IFS
 	IFS=","
 	read -ra NAMES <<< "$PROJS"
 
@@ -33,6 +33,7 @@ function showProjects(){
 		RNAMES+=($name)
 		INDEX=$(( $INDEX + 1 ))
 	done
+	IFS=$OLD_IFS
 }
 
 function delProject(){

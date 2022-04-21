@@ -22,10 +22,34 @@ function todo() {
     if [ $? -eq 0 ]; then # Project has no todo
         echo "Project has no TODOs"
         echo "Would you add one (Y/n)"
-        read -n1 < OPTION
+        read -p "> " OPTION
+
+        if [ -z $OPTION ] || [[ $OPTION =~ [yY] ]]; then
+            newTodo
+        else
+            return 0
+        fi
         #jsonUpdate ".projects[$INDEX].todo = []"
     else
-        echo "JIO"
+        listTodos $INDEX
+
+        echo "========================"
+        echo "What do you want to do?"
+        echo "1) Complete"
+        echo "2) Add"
+        echo "3) Remove"
+        read -p "> " OPTION
+
+        if [ -z $OPTION ]; then
+            return 0
+        elif [ $OPTION -eq 1 ]; then
+            completeTodo $INDEX
+        elif [ $OPTION -eq 2 ]; then
+            newTodo $INDEX
+        elif [ $OPTION -eq 3 ]; then
+            delTodo $INDEX
+        fi
+
     fi
 }
 
@@ -49,4 +73,55 @@ function newTodo() {
 
 function listTodos() {
     INDEX=$1
+    PROJ=$(jsonRead ".projects[$INDEX]")
+    NAME=$(echo $PROJ | jq .name | tr -d '"')
+    echo "$NAME - TODOs"
+
+    INDEX=0
+    TODO_TITLES=$(echo $PROJ | jq '[.todo[].title] | sort_by(".date-added") | reverse | @csv')
+    OLD_IFS=$IFS
+    IFS=,
+    read -ra TITLES <<< $TODO_TITLES
+    IFS=$OLD_IFS
+    for TITLE in ${TITLES[@]}; do
+        TITLE=$(echo $TITLE | tr -d '"\\')
+        CURRENT_TODO=$(echo $PROJ | jq .todo[$INDEX])
+
+        COMPLETED=$(echo $CURRENT_TODO | jq 'if .complete == false then 0 else 1 end' )
+        if [ $COMPLETED -eq 1 ]; then
+            printGreen "[X] $TITLE"
+        else
+            echo "[ ] $TITLE"
+        fi
+
+        DESC=$(echo $CURRENT_TODO | jq '.desc | tostring')
+        DESC=${DESC:1:-1}
+        echo -e "- $DESC"
+        echo ""
+        INDEX=$(( $INDEX + 1 ))
+    done
+}
+
+function delTodo() {
+    echo "DEL!"
+}
+
+function completeTodo() {
+
+    $PROJ=$(readJson | jq .projects)
+    TODO_TITLES=$(echo $PROJ | jq '[.todo[].title] | @csv')
+    OLD_IFS=$IFS
+    IFS=,
+    read -ra TITLES <<< $TODO_TITLES
+    IFS=$OLD_IFS
+    INDEX=0
+    for TITLE in ${TITLES[@]}; do
+        TITLE=$(echo $TITLE | tr -d '\\"')
+        VINDEX=$(( $INDEX + 1 ))
+        echo "$VINDEX - $TITLE"
+        $INDEX=$(( $INDEX + 1 ))
+    done
+
+    echo "Which TODO would you like to mark as complete?"
+    read -p "> " OPTION
 }
