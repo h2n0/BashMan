@@ -5,7 +5,6 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 NUM_ARGS=$#
 PROJ_LOC=~/.proj/projects.json
 
-
 # Other function files
 source $SCRIPT_DIR/json.sh
 source $SCRIPT_DIR/projects.sh
@@ -95,3 +94,4 @@ process "$@"
 cleanup
 unset SCRIPT_DIR
 unset NUM_ARGS
+exec bash

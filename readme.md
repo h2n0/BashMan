@@ -19,7 +19,7 @@ Then set an alias in
 ```
 alias bashman = 'source BashMan/main.sh'
 ```
-'bashman' is just what I call the program, your alias can be anything e.g. `projects`, `projman`
+`bashman` is just what I call the program, your alias can be anything e.g. `projects`, `projman`
 
 You can now open a new terminal and type `bashman` to get going or
 run 

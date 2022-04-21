@@ -18,6 +18,20 @@ function todo() {
         INDEX=$(getProjectIndexFromDirectory)
     fi
 
+    jsonRead ".projects[$INDEX].todo" | grep null > /dev/null
+    if [ $? -eq 0 ]; then # Project has no todo
+        echo "Project has no TODOs"
+        echo "Would you add one (Y/n)"
+        read -n1 < OPTION
+        #jsonUpdate ".projects[$INDEX].todo = []"
+    else
+        echo "JIO"
+    fi
+}
+
+# Create a new todo object and append the array of given project
+function newTodo() {
+    INDEX=$1
     TITLE=""
     DESC=""
     DATE_ADDED=$(date)
@@ -29,11 +43,10 @@ function todo() {
     nano $TMP_TASK
     DESC=$(cat $TMP_TASK | tail -n +2)
 
-    jsonRead ".projects[$INDEX].todo" | grep null > /dev/null
-    if [ $? -eq 0 ]; then # Project has no todo
-        jsonUpdate ".projects[$INDEX].todo = []"
-    fi
-
     DATA="{\"title\":\"$TITLE\", \"desc\":\"$DESC\", \"date-added\":\"$DATE_ADDED\", \"complete\":false}"
     jsonUpdate ".projects[$INDEX].todo += [$DATA]"
+}
+
+function listTodos() {
+    INDEX=$1
 }
