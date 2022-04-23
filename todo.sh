@@ -29,7 +29,6 @@ function todo() {
         else
             return 0
         fi
-        #jsonUpdate ".projects[$INDEX].todo = []"
     else
         listTodos $INDEX
 
@@ -71,8 +70,9 @@ function newTodo() {
     jsonUpdate ".projects[$INDEX].todo += [$DATA]"
 }
 
+# List all the todo projects in order of most recently added
 function listTodos() {
-    INDEX=$1
+    local INDEX=$1
     PROJ=$(jsonRead ".projects[$INDEX]")
     NAME=$(echo $PROJ | jq .name | tr -d '"')
     echo "$NAME - TODOs"
@@ -85,8 +85,7 @@ function listTodos() {
     IFS=$OLD_IFS
     for TITLE in ${TITLES[@]}; do
         TITLE=$(echo $TITLE | tr -d '"\\')
-        CURRENT_TODO=$(echo $PROJ | jq .todo[$INDEX])
-
+        CURRENT_TODO=$(echo $PROJ | jq ".todo | sort_by(\".date-added\") | reverse | .[$INDEX]")
         COMPLETED=$(echo $CURRENT_TODO | jq 'if .complete == false then 0 else 1 end' )
         if [ $COMPLETED -eq 1 ]; then
             printGreen "[X] $TITLE"
@@ -102,26 +101,45 @@ function listTodos() {
     done
 }
 
+
+# Remove a task from the todo list
 function delTodo() {
     echo "DEL!"
 }
 
+# Mark a task in the todo list and complete
 function completeTodo() {
-
-    $PROJ=$(readJson | jq .projects)
-    TODO_TITLES=$(echo $PROJ | jq '[.todo[].title] | @csv')
+    echo ""
+    echo "Which TODO would you like to mark as complete?"
+    local INDEX=$1
+    PROJ=$(jsonRead ".projects[$INDEX]")
+    TODO_TITLES=$(echo $PROJ | jq '.todo | map(select(.complete == false)) | map(.title) | @csv')
+    if [ ${#TODO_TITLES[@]} -gt 1 ]; then
+        echo "Look like your all finished"
+        return 0
+    fi
     OLD_IFS=$IFS
     IFS=,
     read -ra TITLES <<< $TODO_TITLES
     IFS=$OLD_IFS
-    INDEX=0
+    local DINDEX=0
     for TITLE in ${TITLES[@]}; do
         TITLE=$(echo $TITLE | tr -d '\\"')
-        VINDEX=$(( $INDEX + 1 ))
+        VINDEX=$(( $DINDEX + 1 ))
         echo "$VINDEX - $TITLE"
-        $INDEX=$(( $INDEX + 1 ))
+        DINDEX=$(( $DINDEX + 1 ))
     done
 
-    echo "Which TODO would you like to mark as complete?"
     read -p "> " OPTION
+    OPTION=$(( $OPTION - 1 ))
+
+    if [ -z $OPTION ] || [ $OPTION -gt ${#TITLES[@]} ] || [ $OPTION -lt 0 ]; then
+        echo "Not a valid option"
+        return 0
+    else
+        SELECTED_TITLE=$(echo ${TITLES[$OPTION]} | tr -d '\\"')
+        SELECTED_INDEX=$(echo $PROJ | jq ".todo | map(.title) | index(\"$SELECTED_TITLE\")")
+        #jsonRead ".projects[$INDEX].todo[$SELECTED_INDEX].complete |= true"
+        jsonUpdate ".projects[$INDEX].todo[$SELECTED_INDEX].complete |= true"
+    fi
 }
