@@ -1,5 +1,5 @@
 # All functions related to 'todo' actions
-# beling here
+# belong here
 
 # todo function, show current and completed tasks to user
 # about the project in the current directory or about
@@ -18,6 +18,7 @@ function todo() {
         INDEX=$(getProjectIndexFromDirectory)
     fi
 
+    # Check if the project even has a todo field
     jsonRead ".projects[$INDEX].todo" | grep null > /dev/null
     if [ $? -eq 0 ]; then # Project has no todo
         echo "Project has no TODOs"
@@ -29,9 +30,10 @@ function todo() {
         else
             return 0
         fi
-    else
+    else # Project has a todo
         listTodos $INDEX
 
+        echo ""
         echo "========================"
         echo "What do you want to do?"
         echo "1) Complete"
@@ -39,7 +41,7 @@ function todo() {
         echo "3) Remove"
         read -p "> " OPTION
 
-        if [ -z $OPTION ]; then
+        if [ -z $OPTION ]; then # No option chosen, do nothing and leave
             return 0
         elif [ $OPTION -eq 1 ]; then
             completeTodo $INDEX
@@ -54,7 +56,7 @@ function todo() {
 
 # Create a new todo object and append the array of given project
 function newTodo() {
-    INDEX=$1
+    local INDEX=$1
     TITLE=""
     DESC=""
     DATE_ADDED=$(date)
@@ -63,10 +65,15 @@ function newTodo() {
 
     TMP_TASK=/tmp/projtask.tmp
     echo "# What is the description of the task" > $TMP_TASK
+    echo "# Task title: $TITLE" >> $TMP_TASK
     nano $TMP_TASK
-    DESC=$(cat $TMP_TASK | tail -n +2)
+    DESC=$(cat $TMP_TASK | tail -n +3)
+    if [ "$DESC" == "" ]; then
+        echo "No description given"
+        return 0
+    fi
 
-    DATA="{\"title\":\"$TITLE\", \"desc\":\"$DESC\", \"date-added\":\"$DATE_ADDED\", \"complete\":false}"
+    DATA="{\"title\":\"${TITLE}\", \"desc\":\"$DESC\", \"date-added\":\"$DATE_ADDED\", \"complete\":false}"
     jsonUpdate ".projects[$INDEX].todo += [$DATA]"
 }
 
@@ -75,23 +82,33 @@ function listTodos() {
     local INDEX=$1
     PROJ=$(jsonRead ".projects[$INDEX]")
     NAME=$(echo $PROJ | jq .name | tr -d '"')
-    echo "$NAME - TODOs"
 
+    LIST_TITLE="${NAME} - TODOs"
+    echo "$LIST_TITLE"
+    echo ""
+
+    # Get the names of the todos and the number of them
     INDEX=0
-    TODO_TITLES=$(echo $PROJ | jq '[.todo[].title] | sort_by(".date-added") | reverse | @csv')
     NUM_TODOS=$(echo $PROJ | jq '.todo | length')
-    OLD_IFS=$IFS
-    IFS=,
-    read -ra TITLES <<< $TODO_TITLES
-    IFS=$OLD_IFS
 
-    if [ $NUM_TODOS -le 1 ]; then
+    # No todos so leave the function
+    if [ $NUM_TODOS -lt 1 ]; then
+        NONE_STR="-= None =-"
+        PADDING=$(( ( ${#LIST_TITLE} - ${#NONE_STR} ) / 2 ))
+        PADDED_NONE=""
+        while [ $PADDING -gt 0 ]; do
+            PADDED_NONE="${PADDED_NONE} "
+            PADDING=$(( $PADDING - 1 ))
+        done
+        PADDED_NONE="${PADDED_NONE} -= None =-"
+        echo "$PADDED_NONE"
         return 0
     fi
 
-    for TITLE in ${TITLES[@]}; do
-        TITLE=$(echo $TITLE | tr -d '"\\')
-        CURRENT_TODO=$(echo $PROJ | jq ".todo | sort_by(\".date-added\") | reverse | .[$INDEX]")
+    SORTED_TODOS=$(echo $PROJ | jq ".todo | sort_by(\".date-added\") | reverse")
+    for I in $(seq 1 ${NUM_TODOS}); do
+        TITLE=$(echo $SORTED_TODOS | jq ".[$INDEX].title" | tr -d '"')
+        CURRENT_TODO=$(echo $SORTED_TODOS | jq ".[$INDEX]")
         COMPLETED=$(echo $CURRENT_TODO | jq 'if .complete == false then 0 else 1 end' )
         if [ $COMPLETED -eq 1 ]; then
             printGreen "[X] $TITLE"
@@ -99,9 +116,9 @@ function listTodos() {
             echo "[ ] $TITLE"
         fi
 
-        DESC=$(echo $CURRENT_TODO | jq '.desc | tostring')
+        DESC=$(echo $CURRENT_TODO | jq '.desc | gsub("\n";"\n\t")')
         DESC=${DESC:1:-1}
-        echo -e "- $DESC"
+        echo -e "\t$DESC"
         echo ""
         INDEX=$(( $INDEX + 1 ))
     done
@@ -112,22 +129,18 @@ function listTodos() {
 function delTodo() {
     local INDEX=$1
     PROJ=$(jsonRead ".projects[$INDEX]")
-    TODO_TITLES=$(echo $PROJ | jq '.todo | map(.title) | @csv')
-    NUM_TODOS=$(echo $PROJ | jq '.todo | length')
+    SORTED_TODOS=$(echo $PROJ | jq ".todo | sort_by(\".date-added\") | reverse")
+    NUM_TODOS=$(echo $SORTED_TODOS | jq '. | length')
     if [ $NUM_TODOS -lt 1 ]; then
-        echo "Look like there are no tasks to delete"
+        echo "Looks like there are no tasks to delete"
         return 0
     fi
 
     echo ""
     echo "Which TODO would you like to remove?"
-    OLD_IFS=$IFS
-    IFS=,
-    read -ra TITLES <<< $TODO_TITLES
-    IFS=$OLD_IFS
     local DINDEX=0
-    for TITLE in ${TITLES[@]}; do
-        TITLE=$(echo $TITLE | tr -d '\\"')
+    for TITLE in $(seq 1 $NUM_TODOS); do
+        TITLE=$(echo $SORTED_TODOS | jq ".[$DINDEX].title" | tr -d '\\"')
         VINDEX=$(( $DINDEX + 1 ))
         echo "$VINDEX - $TITLE"
         DINDEX=$(( $DINDEX + 1 ))
@@ -136,37 +149,33 @@ function delTodo() {
     read -p "> " OPTION
     OPTION=$(( $OPTION - 1 ))
 
-    if [ -z $OPTION ] || [ $OPTION -gt ${#TITLES[@]} ] || [ $OPTION -lt 0 ]; then
+    if [ -z $OPTION ] || [ $OPTION -ge $NUM_TODOS ] || [ $OPTION -lt 0 ]; then
         echo "Not a valid option"
         return 0
     else
-        SELECTED_TITLE=$(echo ${TITLES[$OPTION]} | tr -d '\\"')
+        SELECTED_TITLE=$(echo $SORTED_TODOS | jq ".[$OPTION].title" | tr -d '\\"')
         SELECTED_INDEX=$(echo $PROJ | jq ".todo | map(.title) | index(\"$SELECTED_TITLE\")")
         jsonUpdate ".projects[$INDEX].todo = (.projects[$INDEX].todo - [.projects[$INDEX].todo[$SELECTED_INDEX]])"
     fi
 }
 
-# Mark a task in the todo list and complete
+# Mark a task in the todo list as complete
 function completeTodo() {
     local INDEX=$1
     PROJ=$(jsonRead ".projects[$INDEX]")
-    TODO_TITLES=$(echo $PROJ | jq '.todo | map(select(.complete == false)) | map(.title) | @csv')
-    NUM_TODOS=$(echo $PROJ | jq '.todo | map(select(.complete == false)) | length')
+    SORTED_TODOS=$(echo $PROJ | jq ".todo | map(select(.complete == false)) | sort_by(\".date-added\") | reverse")
+    NUM_TODOS=$(echo $SORTED_TODOS | jq '. | length')
     if [ $NUM_TODOS -lt 1 ]; then
-        echo "Look like your all finished"
+        echo "Looks like your all finished"
         return 0
     fi
+
     echo ""
     echo "Which TODO would you like to mark as complete?"
-
-    OLD_IFS=$IFS
-    IFS=,
-    read -ra TITLES <<< $TODO_TITLES
-    IFS=$OLD_IFS
     local DINDEX=0
-    for TITLE in ${TITLES[@]}; do
-        TITLE=$(echo $TITLE | tr -d '\\"')
-        VINDEX=$(( $DINDEX + 1 ))
+    for I in $(seq 1 ${NUM_TODOS}); do
+        TITLE=$(echo $SORTED_TODOS | jq ".[$DINDEX].title" | tr -d '"')
+        VINDEX=$(( $DINDEX + 1 )) # Virtual index, humans start from 1 - not 0
         echo "$VINDEX - $TITLE"
         DINDEX=$(( $DINDEX + 1 ))
     done
@@ -174,11 +183,11 @@ function completeTodo() {
     read -p "> " OPTION
     OPTION=$(( $OPTION - 1 ))
 
-    if [ -z $OPTION ] || [ $OPTION -gt ${#TITLES[@]} ] || [ $OPTION -lt 0 ]; then
+    if [ -z $OPTION ] || [ $OPTION -ge ${NUM_TODOS} ] || [ $OPTION -lt 0 ]; then
         echo "Not a valid option"
         return 0
     else
-        SELECTED_TITLE=$(echo ${TITLES[$OPTION]} | tr -d '\\"')
+        SELECTED_TITLE=$(echo $SORTED_TODOS | jq ".[$OPTION].title" | tr -d '\\"')
         SELECTED_INDEX=$(echo $PROJ | jq ".todo | map(.title) | index(\"$SELECTED_TITLE\")")
         jsonUpdate ".projects[$INDEX].todo[$SELECTED_INDEX].complete |= true"
     fi
