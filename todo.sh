@@ -93,6 +93,9 @@ function listTodos() {
 
     # No todos so leave the function
     if [ $NUM_TODOS -lt 1 ]; then
+
+        # Print a centered 'None' to show user that there are no tasks
+        # for them to be doing
         NONE_STR="-= None =-"
         PADDING=$(( ( ${#LIST_TITLE} - ${#NONE_STR} ) / 2 ))
         PADDED_NONE=""
@@ -102,9 +105,11 @@ function listTodos() {
         done
         PADDED_NONE="${PADDED_NONE} -= None =-"
         echo "$PADDED_NONE"
+
         return 0
     fi
 
+    # Sort the projects by most recent first
     SORTED_TODOS=$(echo $PROJ | jq ".todo | sort_by(\".date-added\") | reverse")
     for I in $(seq 1 ${NUM_TODOS}); do
         TITLE=$(echo $SORTED_TODOS | jq ".[$INDEX].title" | tr -d '"')
@@ -116,7 +121,9 @@ function listTodos() {
             echo "[ ] $TITLE"
         fi
 
+        # Apply formatting to description
         DESC=$(echo $CURRENT_TODO | jq '.desc | gsub("\n";"\n\t")')
+        # Remove the '"' from either end of the string
         DESC=${DESC:1:-1}
         echo -e "\t$DESC"
         echo ""
@@ -129,6 +136,8 @@ function listTodos() {
 function delTodo() {
     local INDEX=$1
     PROJ=$(jsonRead ".projects[$INDEX]")
+
+    # Sort the todos by most recent first
     SORTED_TODOS=$(echo $PROJ | jq ".todo | sort_by(\".date-added\") | reverse")
     NUM_TODOS=$(echo $SORTED_TODOS | jq '. | length')
     if [ $NUM_TODOS -lt 1 ]; then
@@ -141,7 +150,7 @@ function delTodo() {
     local DINDEX=0
     for TITLE in $(seq 1 $NUM_TODOS); do
         TITLE=$(echo $SORTED_TODOS | jq ".[$DINDEX].title" | tr -d '\\"')
-        VINDEX=$(( $DINDEX + 1 ))
+        VINDEX=$(( $DINDEX + 1 )) # Virtual index, humans start counting from 1
         echo "$VINDEX - $TITLE"
         DINDEX=$(( $DINDEX + 1 ))
     done
@@ -153,6 +162,8 @@ function delTodo() {
         echo "Not a valid option"
         return 0
     else
+        # Remove selected index, first need to get index in sorted array
+        # then find the correct index in the original array to remove
         SELECTED_TITLE=$(echo $SORTED_TODOS | jq ".[$OPTION].title" | tr -d '\\"')
         SELECTED_INDEX=$(echo $PROJ | jq ".todo | map(.title) | index(\"$SELECTED_TITLE\")")
         jsonUpdate ".projects[$INDEX].todo = (.projects[$INDEX].todo - [.projects[$INDEX].todo[$SELECTED_INDEX]])"
@@ -187,6 +198,8 @@ function completeTodo() {
         echo "Not a valid option"
         return 0
     else
+        # Marked selected index as completed, need to first get the index in
+        # the sorted array and then find that index in the original array
         SELECTED_TITLE=$(echo $SORTED_TODOS | jq ".[$OPTION].title" | tr -d '\\"')
         SELECTED_INDEX=$(echo $PROJ | jq ".todo | map(.title) | index(\"$SELECTED_TITLE\")")
         jsonUpdate ".projects[$INDEX].todo[$SELECTED_INDEX].complete |= true"
