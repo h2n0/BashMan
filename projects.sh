@@ -16,6 +16,12 @@ function showProjects(){
 	PROJS=$(jsonRead "[.projects[].name] | @csv")
 	INDEX=0
 
+	AMT=$(jsonRead ".projects | length")
+	if [ $AMT -eq 0 ]; then
+		echo "No projects yet!"
+		return
+	fi
+
 	OLD_IFS=$IFS
 	IFS=","
 	read -ra NAMES <<< "$PROJS"
@@ -157,6 +163,13 @@ function cleanup() {
 }
 
 function projectSelect() {
+
+	AMT=$(jsonRead ".projects | length")
+	if [ $AMT -eq 0 ]; then
+		echo "No projects yet!"
+		return 99
+	fi
+
 	INDEX=0
 	IFS=","
 	read -ra NAMES <<< "$(getProjectNames)"

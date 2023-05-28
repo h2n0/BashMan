@@ -43,6 +43,7 @@ function intro() {
 			DATA=$(cat $PROJ_LOC)
 		else
 			echo "No project file found, creating"
+			mkdir $(dirname $PROJ_LOC)
 			echo "{ \"projects\": [], \"current\":null }" > $PROJ_LOC
 		fi
 	fi
@@ -94,4 +95,5 @@ process "$@"
 cleanup
 unset SCRIPT_DIR
 unset NUM_ARGS
+unset PROJ_LOC
 exec bash

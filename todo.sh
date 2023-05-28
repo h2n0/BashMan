@@ -12,6 +12,9 @@ function todo() {
     if [ -z $INPROJ ]; then # Not in a projects so selection
         projectSelect "What project would you like to see the todo list of?"
         CHOICE=$?
+        if [ $CHOICE -eq 99 ]; then
+            return
+        fi
         CHOICE=$(( $CHOICE - 1 ))
         INDEX=$CHOICE
     else # Inside a project
