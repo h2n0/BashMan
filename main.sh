@@ -14,7 +14,14 @@ source $SCRIPT_DIR/todo.sh
 # Get the name / alias of the program
 function getProgramName() {
 	local SCRIPT=$0
-	cat ~/.bashrc | grep $SCRIPT | grep $SCRIPT_DIR | grep -oEi 'alias .*=' | cut -b 7- | grep -oEi '^.*[^=]'
+	PROG_NAME=$(cat ~/.bashrc | grep $SCRIPT | grep $SCRIPT_DIR | grep -oEi 'alias .*=' | cut -b 7- | grep -oEi '^.*[^=]')
+
+	# If not in '~/.bashrc' then check '~/.bash_aliases'
+	if [ -z $PROG_NAME ]; then
+		PROG_NAME=$(cat ~/.bash_aliases | grep $SCRIPT | grep $SCRIPT_DIR | grep -oEi 'alias .*=' | cut -b 7- | grep -oEi '^.*[^=]')
+	fi
+
+	echo $PROJ_NAME
 }
 
 function helpDisplay() {
@@ -28,12 +35,12 @@ function helpDisplay() {
 	echo "back - Go to current marked project"
 	echo "void - Remove a project from tracking"
 	echo "list - Show all proejcts"
-	echo "todo - coming soon..."
+	echo "todo - Show current project todo"
 }
 
 
 function intro() {
-	printGreen "BashMan - V1"
+	printGreen "BashMan - V1.1"
 	echo ""
 	if [ $NUM_ARGS -eq 0 ]; then
 		helpDisplay
@@ -55,6 +62,10 @@ function process(){
 		case "$arg" in
 			"goto")
 				goto
+				if [ $? -eq 99 ]; then
+					echo ""
+					return 255
+				fi
 				;;
 			"mark")
 				mark
@@ -82,13 +93,24 @@ function process(){
                 ;;
 			*)
 				echo "Command not recognized: $arg"
+				return 255
 				;;
 		esac
 	done
+
+	return 0
 }
 ### MAIN SCRIPT STARTS HERE ###
 intro
+if [ $NUM_ARGS -eq 0 ]; then
+	exit 0
+fi
+
 process "$@"
+
+if [ $? -eq 255 ]; then
+	exit 1
+fi
 
 
 # Clean up vars here
@@ -96,4 +118,8 @@ cleanup
 unset SCRIPT_DIR
 unset NUM_ARGS
 unset PROJ_LOC
-exec bash
+
+#clear
+echo "Now in $PROJ_NAME, exit terminal to return to normal env"
+exec bash --rcfile <(cat ~/.bashrc; echo -e "PS1='[\033[38;5;214m$(echo $PROJ_NAME | tr -d '"')\033[0m]:\033[34m\w\033[0m\$ '") -i
+unset PROJ_NAME

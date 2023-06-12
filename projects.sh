@@ -97,6 +97,8 @@ function gotoMark(){
 	DIR=$(echo "$V" | jq ".dir" | tr -d '"')
 	echo "Moving to project - $NAME"
 	cd $DIR
+
+	PROJ_NAME=$NAME
 }
 
 function showData() {
@@ -136,24 +138,25 @@ function goto() {
 	projectSelect "Where would you like to go?"
 	CHOICE=$?
 	if [ $CHOICE -eq 99 ]; then
-		return 0
-	fi
-
-	CHOICE=$(( $CHOICE - 1 ))
-
-	CHOICEDIR=$(jsonRead ".projects[$CHOICE].dir" | tr -d "\"")
-	if [ "$(pwd)" == "$CHOICEDIR" ]; then
-		echo "Already here!"
-		return 0
-	fi
-
-	DIR=$(jsonRead ".projects[$CHOICE]?.dir")
-	if [ -z $DIR ]; then
-		echo "ERROR, dir is null!"
-		return 0
+		return 99
 	else
-		DIR=$(echo $DIR | tr -d '"')
-		cd $DIR
+		CHOICE=$(( $CHOICE - 1 ))
+
+		CHOICEDIR=$(jsonRead ".projects[$CHOICE].dir" | tr -d "\"")
+		if [ "$(pwd)" == "$CHOICEDIR" ]; then
+			echo "Already here!"
+			return 0
+		fi
+
+		DIR=$(jsonRead ".projects[$CHOICE]?.dir")
+		if [ -z $DIR ]; then
+			echo "ERROR, dir is null!"
+			return 0
+		else
+			DIR=$(echo $DIR | tr -d '"')
+			cd $DIR
+			PROJ_NAME=$(jsonRead ".projects[$CHOICE].name")
+		fi
 	fi
 }
 
@@ -189,10 +192,14 @@ function projectSelect() {
 		INDEX=$(( $INDEX + 1 ))
 	done
 	read -p "> " CHOICE
-	if [ -z $CHOICE ]; then
+
+
+	# Edge case when pressing CRTL+D
+	VALID=$(echo $CHOICE | grep -E "[0-9]+")
+	if [ $? -eq 1 ]; then
 		return 99
 	else
-		while [ $CHOICE -gt $(( ${#NAMES[@]} )) ] || [ $CHOICE -lt 0 ]; do
+		while [ $CHOICE -gt $(( ${#NAMES[@]} )) ] || [ $CHOICE -lt 1 ]; do
 			echo "Choice not in range"
 			read -p "> " CHOICE
 		done
