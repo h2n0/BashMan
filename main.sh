@@ -120,6 +120,6 @@ unset NUM_ARGS
 unset PROJ_LOC
 
 #clear
-echo "Now in $PROJ_NAME, exit terminal to return to normal env"
-exec bash --rcfile <(cat ~/.bashrc; echo -e "PS1='[\033[38;5;214m$(echo $PROJ_NAME | tr -d '"')\033[0m]:\033[34m\w\033[0m\$ '") -i
+echo "Now in "$PROJ_NAME", exit terminal to return to normal env"
+exec bash --rcfile <(cat ~/.bashrc; echo -e "PS1='[\033[38;5;214m$(echo "$PROJ_NAME" | tr -d '"')\033[0m]:\033[34m\w\033[0m\$ '") -i
 unset PROJ_NAME
