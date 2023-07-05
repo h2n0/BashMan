@@ -69,21 +69,33 @@ function process(){
 				;;
 			"mark")
 				mark
+				return 255
 				;;
 			"init")
 				init
+				return 255
 				;;
 			"help")
 				helpDisplay
+				return 255
 				;;
 			"data")
 				showData
+				return 255
 				;;
 			"back")
 				gotoMark
 				;;
 			"void")
 				delProject
+				O=$?
+				if [ $O -eq 99 ]; then
+					echo "Not removed from data files"
+					return 255
+				elif [ $O -eq 98 ]; then
+					echo "Removed from data file"
+					return 255
+				fi
 				;;
 			"list")
 				showProjects
@@ -121,5 +133,14 @@ unset PROJ_LOC
 
 #clear
 echo "Now in "$PROJ_NAME", exit terminal to return to normal env"
-exec bash --rcfile <(cat ~/.bashrc; echo -e "PS1='[\033[38;5;214m$(echo "$PROJ_NAME" | tr -d '"')\033[0m]:\033[34m\w\033[0m\$ '") -i
+
+#get Git branch name if avaliable
+BRANCH=$(git status | grep "branch")
+if [ $? -eq 0 ]; then
+	BRANCH=$(echo $BRANCH | awk '{print $3}' 2> /dev/null)
+else
+	BRANCH=""
+fi
+
+exec bash --rcfile <(cat ~/.bashrc; echo -e "PS1='[\033[38;5;214m$(echo "$PROJ_NAME" | tr -d '"') - $BRANCH\033[0m]:\033[34m\w\033[0m\$ '") -i
 unset PROJ_NAME

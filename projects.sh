@@ -46,7 +46,7 @@ function delProject(){
 	projectSelect "Which project would you like to void?"
 	CHOICE=$?
 	if [ $CHOICE -eq 99 ]; then
-		return 0
+		return 99
 	fi
 	# Make sure choice is valid
 	CHOICE=$(( $CHOICE - 1 ))
@@ -59,23 +59,28 @@ function delProject(){
 		echo "Are you sure you want to void the current project?"
 		read -p "(y/N) " VOID
 		if [ -z $VOID ] && [[ ! "$VOID" =~ "(y|Y)" ]]; then
-			exit 0
+			return 99
 		fi
 	fi
 
 	# Select all the projects that aren't the one we selected
-	PROJ=$(echo ${RNAMES[$CHOICE]})
 	CURRENTNAME=$(jsonRead ".projects[.current].name")
-
-	V=$(jsonRead "[.projects[] | select(.name != \"$PROJ\")]")
-	jsonUpdate ".projects |= $V"
-	echo "Removed $PROJ from projects list!"
+	SELECTED=$(jsonRead ".projects[$CHOICE].name")
 
 	# Change the current index
 	if [ ! $CURRENTNAME == "null" ]; then
 		NEWINDEX=$(jsonRead "[.projects[].name] | map(. == $CURRENTNAME) | index(true)")
 		jsonUpdate ".current |= $NEWINDEX"
 	fi
+
+	echo $CURRENTNAME
+
+	V=$(jsonRead "[ .projects[] | select(.name != $SELECTED )]")
+	OUT=$(jsonUpdate ".projects = $V")
+	echo $V
+	echo "Removed $SELECTED from projects list!"
+
+	return 98
 }
 
 function mark() {
