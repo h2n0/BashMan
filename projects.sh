@@ -91,7 +91,7 @@ function mark() {
 		INDEX=$V
 		jsonUpdate ".current |= $V"
 		PROJ=$(jsonRead ".projects[$INDEX].name")
-		echo "Updated marker for curren project to => $PROJ"
+		echo "Updated marker for current project to => $PROJ"
 	fi
 
 }
@@ -150,7 +150,6 @@ function goto() {
 		CHOICEDIR=$(jsonRead ".projects[$CHOICE].dir" | tr -d "\"")
 		if [ "$(pwd)" == "$CHOICEDIR" ]; then
 			echo "Already here!"
-			return 0
 		fi
 
 		DIR=$(jsonRead ".projects[$CHOICE]?.dir")

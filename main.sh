@@ -99,9 +99,11 @@ function process(){
 				;;
 			"list")
 				showProjects
+				return 255
 				;;
             "todo")
                 todo
+				return 255
                 ;;
 			*)
 				echo "Command not recognized: $arg"
@@ -135,12 +137,16 @@ unset PROJ_LOC
 echo "Now in "$PROJ_NAME", exit terminal to return to normal env"
 
 #get Git branch name if avaliable
-BRANCH=$(git status | grep "branch")
+BRANCH=$(git status 2> /dev/null| head -1 | grep "branch")
 if [ $? -eq 0 ]; then
-	BRANCH=$(echo $BRANCH | awk '{print $3}' 2> /dev/null)
+	BRANCH=$(echo $BRANCH | awk '{print $3}' 2> /dev/null | awk -F'\n' '{ print $1}')
 else
 	BRANCH=""
 fi
 
-exec bash --rcfile <(cat ~/.bashrc; echo -e "PS1='[\033[38;5;214m$(echo "$PROJ_NAME" | tr -d '"') - $BRANCH\033[0m]:\033[34m\w\033[0m\$ '") -i
+TAG=$(echo "$PROJ_NAME" | tr -d '"')
+if [ "$BRANCH" != "" ]; then
+	TAG=$(echo -e "$TAG => $(printGreen $BRANCH)")
+fi
+exec bash --rcfile <(cat ~/.bashrc; echo -e "PS1='[\033[38;5;214m$TAG\033[0m]:\033[34m\w\033[0m\$ '") -i
 unset PROJ_NAME
