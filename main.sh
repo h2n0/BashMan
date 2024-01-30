@@ -105,6 +105,10 @@ function process(){
                 todo
 				return 255
                 ;;
+			"rename")
+				renameProject
+				return 255
+				;;
 			*)
 				echo "Command not recognized: $arg"
 				return 255

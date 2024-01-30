@@ -9,6 +9,14 @@ function printGreen {
 	printColor "$1" "0;32"
 }
 
+function printYellow {
+	printColor "$1" "0;33"
+}
+
+function printRed {
+	printColor "$1" "0;31"
+}
+
 # Check how many arguments there are
 # No need to run if we arent told what to do
 
@@ -224,4 +232,29 @@ function getProjectInDirectory() {
 function getProjectIndexFromDirectory() {
 	V=$(jsonRead "[.projects[].dir] | map(. ==\"$(pwd)\") | index(true) // -1 ")
 	echo $V
+}
+
+function renameProject(){
+	INDEX=$(getProjectIndexFromDirectory)
+
+	if [ $INDEX -eq -1 ]; then # Not in a project directory, so we need to pick one to change
+		projectSelect "Please select the project you would like to rename"
+		CHOICE=$?
+		if [ $CHOICE  -eq 99 ]; then # No valid option chosen
+			return 255
+		fi
+		INDEX=$(( $CHOICE - 1 ))
+	fi
+	echo "What would you like the rename the project to?"
+	read -p "> " NEW_NAME
+	if [ ! $? -eq 0 ] && [ -z $NEW_NAME ]; then
+		echo "No name provided, exiting!"
+		return 255
+	else
+		ONAME=$(jsonRead ".projects[$INDEX].name" | tr -d '"')
+		jsonUpdate ".projects[$INDEX].name |= \"$NEW_NAME\""
+		if [ $? -eq 0 ]; then
+			echo "Successfuly updated project name. $ONAME => $NEW_NAME"
+		fi
+	fi
 }
