@@ -135,10 +135,14 @@ function init() {
 		echo "This directory is already a project!"
 	else
 		echo "What do you want to call this project?"
-		read -p "> " NAME
-		if [ ! $? -eq 0 ] && [ -z $NAME ]; then
-			echo "No name prodived, exiting!"
+		DEFAULT=$(pwd | tr "/" "\n" | tail -1)
+		read -p "($DEFAULT)> " NAME
+		if [ ! $? -eq 0 ]; then
+			echo "User terminated, exiting!"
 		else
+			if [ -z $NAME ]; then
+				NAME=$DEFAULT
+			fi
 			jsonUpdate ".projects += [{\"name\": \"$NAME\", \"dir\": \"$(pwd)\"}]"
 			if [ $? -eq 0 ]; then
 				printGreen "Project created!"
