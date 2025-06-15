@@ -151,28 +151,44 @@ function init() {
 	fi
 }
 
-function goto() {
-	projectSelect "Where would you like to go?"
-	CHOICE=$?
-	if [ $CHOICE -eq 99 ]; then
-		return 99
+function _moveto() {
+	CHOICEDIR=$(jsonRead ".projects[$1].dir" | tr -d "\"")
+	if [ "$(pwd)" == "$CHOICEDIR" ]; then
+		echo "Already here!"
+	fi
+
+	DIR=$(jsonRead ".projects[$1]?.dir")
+	if [ -z $DIR ]; then
+		echo "ERROR, dir is null!"
+		return 0
 	else
-		CHOICE=$(( $CHOICE - 1 ))
+		DIR=$(echo $DIR | tr -d '"')
+		cd $DIR
+		PROJ_NAME=$(jsonRead ".projects[$1].name")
+	fi
+}
 
-		CHOICEDIR=$(jsonRead ".projects[$CHOICE].dir" | tr -d "\"")
-		if [ "$(pwd)" == "$CHOICEDIR" ]; then
-			echo "Already here!"
-		fi
+function goto() {
 
-		DIR=$(jsonRead ".projects[$CHOICE]?.dir")
-		if [ -z $DIR ]; then
-			echo "ERROR, dir is null!"
-			return 0
+	if [ -z $1 ]; then
+		projectSelect "Where would you like to go?"
+		CHOICE=$?
+		if [ $CHOICE -eq 99 ]; then
+			return 99
 		else
-			DIR=$(echo $DIR | tr -d '"')
-			cd $DIR
-			PROJ_NAME=$(jsonRead ".projects[$CHOICE].name")
+			CHOICE=$(( $CHOICE - 1 ))
+
+			_moveto $CHOICE
 		fi
+	else
+		C=$(getNumberOfProjects)
+		if [[ $1 -lt 1 ]] || [[ $1 -gt $C ]]; then
+			echo "Invalid choice of project"
+			return 99
+		fi
+
+		C=$(( $1 - 1 ))
+		_moveto $C
 	fi
 }
 
@@ -231,6 +247,11 @@ function getProjectNames(){
 function getProjectInDirectory() {
 	V=$(jsonRead "[.projects[].dir] | map(. ==\"$(pwd)\") | index(true) // -1 ")
 	jsonRead ".projects[$V]$1"
+}
+
+function getNumberOfProjects(){
+	COUNT=$(jsonRead "[.projects[].names] | length")
+	echo $COUNT
 }
 
 function getProjectIndexFromDirectory() {

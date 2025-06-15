@@ -10,6 +10,8 @@ source $SCRIPT_DIR/json.sh
 source $SCRIPT_DIR/projects.sh
 source $SCRIPT_DIR/todo.sh
 
+PROJ_VER="V1.1"
+
 
 # Get the name / alias of the program
 function getProgramName() {
@@ -40,7 +42,7 @@ function helpDisplay() {
 
 
 function intro() {
-	printGreen "BashMan - V1.1"
+	printGreen "BashMan - $PROJ_VER"
 	echo ""
 	if [ $NUM_ARGS -eq 0 ]; then
 		helpDisplay
@@ -58,10 +60,13 @@ function intro() {
 
 # Check what we want to do
 function process(){
+	ARGS="$@"
 	for arg in $1; do
 		case "$arg" in
 			"goto")
-				goto
+				A=($ARGS)
+				NUM="${A[@]:1}"
+				goto $NUM
 				if [ $? -eq 99 ]; then
 					echo ""
 					return 255
@@ -85,6 +90,7 @@ function process(){
 				;;
 			"back")
 				gotoMark
+				return 255
 				;;
 			"void")
 				delProject
@@ -124,7 +130,7 @@ if [ $NUM_ARGS -eq 0 ]; then
 	exit 0
 fi
 
-process "$@"
+process $@
 
 if [ $? -eq 255 ]; then
 	exit 1
@@ -148,9 +154,14 @@ else
 	BRANCH=""
 fi
 
-TAG=$(echo "$PROJ_NAME" | tr -d '"')
+NO_QUOTE_NAME=$(echo "$PROJ_NAME" | tr -d '"')
+TAG=$NO_QUOTE_NAME
 if [ "$BRANCH" != "" ]; then
 	TAG=$(echo -e "$TAG => $(printGreen $BRANCH)")
 fi
+
+# Set title of terminal
+echo -ne "\033]0;BashMan - $PROJ_VER: $NO_QUOTE_NAME\007"
+
 exec bash --rcfile <(cat ~/.bashrc; echo -e "PS1='[\033[38;5;214m$TAG\033[0m]:\033[34m\w\033[0m\$ '") -i
 unset PROJ_NAME
