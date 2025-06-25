@@ -90,7 +90,7 @@ function process(){
 				;;
 			"back")
 				gotoMark
-				return 255
+				return 0
 				;;
 			"void")
 				delProject
